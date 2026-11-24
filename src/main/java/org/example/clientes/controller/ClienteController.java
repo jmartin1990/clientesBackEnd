@@ -17,16 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Controlador REST: recibe las peticiones HTTP y devuelve JSON.
- *
- *   GET    /api/clientes        -> lista todos los clientes
- *   GET    /api/clientes/{id}   -> obtiene un cliente
- *   POST   /api/clientes        -> crea un cliente
- *   PUT    /api/clientes/{id}   -> actualiza un cliente
- *   DELETE /api/clientes/{id}   -> borra un cliente
- */
 @RestController
+
 @RequestMapping("/api/clientes")
 public class ClienteController {
 

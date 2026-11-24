@@ -25,8 +25,8 @@ La contraseña de MySQL **no se guarda en el código**: se lee de la variable de
 ### ¿Qué es una variable de entorno?
 
 Es un valor con nombre (por ejemplo `DB_PASSWORD=1234`) que guarda el **sistema operativo**
-y que cualquier programa puede leer al arrancar. Sirve para dar configuración a una aplicación
-**sin escribirla dentro del código**.
+y que cualquier programa puede leer al arrancar. Sirve para dar configuración a una aplicación **sin escribirla dentro
+del código**.
 
 ### ¿Por qué usarlas para la contraseña?
 
@@ -54,8 +54,8 @@ Spring lo busca, entre otros sitios, en las variables de entorno del sistema. De
 Variable de entorno DB_PASSWORD  →  application.properties (db.password)  →  ConexionBD (@Value)
 ```
 
-También se puede poner un **valor por defecto** por si la variable no existe
-(`${DB_PASSWORD:valor_por_defecto}`), pero aquí no lo hacemos a propósito: así ninguna
+También se puede poner un **valor por defecto** por si la variable no existe (`${DB_PASSWORD:valor_por_defecto}`), pero
+aquí no lo hacemos a propósito: así ninguna
 contraseña queda escrita en el repositorio.
 
 ### ¿Qué pasa si no la defino?
@@ -152,9 +152,12 @@ src/main/java/org/example/clientes/
 ├── repository/
 │   └── ClienteRepository.java        → consultas SQL (SELECT, INSERT, UPDATE, DELETE)
 ├── service/
-│   └── ClienteService.java           → lógica de negocio y validaciones
+│   ├── ClienteService.java           → lógica de negocio y validaciones de clientes
+│   └── HoraService.java              → cálculo y formateo de la hora actual de Madrid
 └── controller/
-    └── ClienteController.java        → endpoints REST
+    ├── ClienteController.java        → endpoints REST de clientes
+    ├── HoraController.java           → endpoint REST de hora actual en Madrid
+    └── PingController.java           → endpoint de comprobación de estado
 ```
 
 Flujo de una petición:
@@ -176,24 +179,26 @@ Cliente HTTP → Controller → Service → Repository → MySQL
 }
 ```
 
-| Campo       | Tipo    | Obligatorio | Columna en la BD |
-|-------------|---------|-------------|------------------|
-| `id`        | entero  | lo genera MySQL | `id_clientes` |
-| `nombre`    | texto   | sí          | `nombre`         |
-| `apellido`  | texto   | sí          | `apellido`       |
-| `telefono`  | texto   | no          | `telefono`       |
-| `email`     | texto   | no          | `email`          |
-| `direccion` | texto   | no          | `direccion`      |
+| Campo       | Tipo   | Obligatorio     | Columna en la BD |
+|-------------|--------|-----------------|------------------|
+| `id`        | entero | lo genera MySQL | `id_clientes`    |
+| `nombre`    | texto  | sí              | `nombre`         |
+| `apellido`  | texto  | sí              | `apellido`       |
+| `telefono`  | texto  | no              | `telefono`       |
+| `email`     | texto  | no              | `email`          |
+| `direccion` | texto  | no              | `direccion`      |
 
 ## Endpoints
 
-| Método   | Ruta                  | Descripción              | Respuestas |
-|----------|-----------------------|--------------------------|------------|
-| `GET`    | `/api/clientes`       | Lista todos los clientes | `200 OK` |
-| `GET`    | `/api/clientes/{id}`  | Obtiene un cliente       | `200 OK`, `404 Not Found` |
-| `POST`   | `/api/clientes`       | Crea un cliente          | `201 Created`, `400 Bad Request` |
-| `PUT`    | `/api/clientes/{id}`  | Actualiza un cliente     | `200 OK`, `400 Bad Request`, `404 Not Found` |
-| `DELETE` | `/api/clientes/{id}`  | Borra un cliente         | `204 No Content`, `404 Not Found` |
+| Método   | Ruta                 | Descripción                   | Respuestas                                   |
+|----------|----------------------|-------------------------------|----------------------------------------------|
+| `GET`    | `/api/clientes`      | Lista todos los clientes      | `200 OK`                                     |
+| `GET`    | `/api/clientes/{id}` | Obtiene un cliente            | `200 OK`, `404 Not Found`                    |
+| `POST`   | `/api/clientes`      | Crea un cliente               | `201 Created`, `400 Bad Request`             |
+| `PUT`    | `/api/clientes/{id}` | Actualiza un cliente          | `200 OK`, `400 Bad Request`, `404 Not Found` |
+| `DELETE` | `/api/clientes/{id}` | Borra un cliente              | `204 No Content`, `404 Not Found`            |
+| `GET`    | `/api/hora`          | Hora actual en Madrid (24h)   | `200 OK`                                     |
+| `GET`    | `/ping`              | Comprueba el estado de la API | `200 OK`                                     |
 
 ---
 
@@ -214,8 +219,7 @@ Respuesta `200 OK`:
     "telefono": "600000001",
     "email": "patricia.ramos.0001@example.com",
     "direccion": "Avenida de la Paz 55, 8º A, 37002 Salamanca"
-  },
-  ...
+  }
 ]
 ```
 
@@ -272,7 +276,9 @@ Respuesta `201 Created`:
 Si falta el nombre o el apellido, responde `400 Bad Request`:
 
 ```json
-{ "error": "El nombre es obligatorio" }
+{
+  "error": "El nombre es obligatorio"
+}
 ```
 
 ### 4. Actualizar un cliente
@@ -301,6 +307,34 @@ curl -X DELETE http://localhost:8081/api/clientes/1001
 
 Respuesta `204 No Content` (sin cuerpo). Si el id no existe, `404 Not Found`.
 
+### 6. Obtener la hora actual de Madrid
+
+Devuelve la hora actual en la zona horaria oficial de Madrid (`Europe/Madrid`) en formato de 24 horas (`HH:mm:ss`).
+
+```bash
+curl http://localhost:8081/api/hora
+```
+
+Respuesta `200 OK`:
+
+```json
+{
+  "madrid": "18:26:00"
+}
+```
+
+### 7. Comprobar estado del servidor (Ping)
+
+```bash
+curl http://localhost:8081/ping
+```
+
+Respuesta `200 OK`:
+
+```text
+Pong!
+```
+
 ---
 
 ## Ejemplo desde JavaScript (frontend)
@@ -316,20 +350,20 @@ console.log(clientes.length); // 1000
 
 // Crear
 const nuevo = await fetch(API, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ nombre: "Ana", apellido: "López García" })
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({nombre: "Ana", apellido: "López García"})
 }).then(res => res.json());
 
 // Actualizar
 await fetch(`${API}/${nuevo.id}`, {
-  method: "PUT",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ nombre: "Ana María", apellido: "López García" })
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({nombre: "Ana María", apellido: "López García"})
 });
 
 // Borrar
-await fetch(`${API}/${nuevo.id}`, { method: "DELETE" });
+await fetch(`${API}/${nuevo.id}`, {method: "DELETE"});
 ```
 
 ## Nota sobre CORS
